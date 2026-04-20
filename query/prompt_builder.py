@@ -22,7 +22,7 @@ Token budget strategy:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from query.context_expander import ExpandedChunk
 from shared.config import get_settings

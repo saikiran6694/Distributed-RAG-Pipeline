@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import mimetypes
 from pathlib import Path
 from uuid import uuid4
 from typing import Literal

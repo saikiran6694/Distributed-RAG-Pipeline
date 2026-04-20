@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import logging
 import math
-import re
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path

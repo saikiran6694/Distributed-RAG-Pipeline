@@ -9,8 +9,6 @@ This guarantees at-least-once delivery — never lose a document on crash.
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 import signal
 import time

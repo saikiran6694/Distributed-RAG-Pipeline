@@ -110,10 +110,14 @@ class Settings(BaseSettings):
     HF_EMBED_DIM:           int = 384
     HF_DEVICE:              str = "cpu"         # 'cpu' | 'cuda' | 'mps'
 
+    GROP_API_KEY:           str
+    GROP_LLAMA_MODEL_NAME:  str = "llama-3.3-70b-versatile"
+
     # Ollama
     OLLAMA_BASE_URL:        str = "http://localhost:11434"
     OLLAMA_EMBED_MODEL:     str = "nomic-embed-text"
     OLLAMA_EMBED_DIM:       int = 768
+    
 
     # ── Observability ─────────────────────────────────────────
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"

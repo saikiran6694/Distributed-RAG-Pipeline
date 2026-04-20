@@ -16,7 +16,6 @@ Best for: long-form documents (books, reports, legal docs, manuals).
 from __future__ import annotations
 
 import logging
-import textwrap
 from uuid import uuid4
 
 import tiktoken
@@ -28,10 +27,6 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 _TOKENIZER = tiktoken.get_encoding("cl100k_base")
-
-
-def _token_count(text: str) -> int:
-    return len(_TOKENIZER.encode(text))
 
 
 def _truncate_to_tokens(text: str, max_tokens: int) -> str:

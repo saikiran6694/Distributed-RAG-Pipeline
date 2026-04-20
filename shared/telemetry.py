@@ -68,6 +68,22 @@ PARSE_ERRORS = Counter(
     ["doc_type", "error_type"],
 )
 
+RERANKER_DURATION = Histogram(
+    "reranker_duration_seconds",
+    "CrossEncoder reranking latency",
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0],
+)
+
+CACHE_HITS = Counter(
+    "semantic_cache_hits_total",
+    "Semantic cache hits",
+)
+
+CACHE_MISSES = Counter(
+    "semantic_cache_misses_total",
+    "Semantic cache misses",
+)
+
 
 # ─────────────────────────────────────────────────────────────────
 #  OpenTelemetry tracer
