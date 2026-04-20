@@ -110,7 +110,7 @@ class Settings(BaseSettings):
     HF_EMBED_DIM:           int = 384
     HF_DEVICE:              str = "cpu"         # 'cpu' | 'cuda' | 'mps'
 
-    GROP_API_KEY:           str = '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'
+    GROP_API_KEY:           str
     GROP_LLAMA_MODEL_NAME:  str = "llama-3.3-70b-versatile"
 
     # Ollama
