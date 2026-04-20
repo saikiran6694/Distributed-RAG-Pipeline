@@ -10,11 +10,8 @@ Unit tests for Phase 2 components:
 
 from __future__ import annotations
 
-import math
-import pytest
-from unittest.mock import MagicMock, AsyncMock
 
-from ingestion.embedding.sparse import BM25Encoder, SparseVector
+from ingestion.embedding.sparse import BM25Encoder
 
 
 # ─────────────────────────────────────────────────────────────────

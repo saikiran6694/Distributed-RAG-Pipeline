@@ -23,9 +23,8 @@ from __future__ import annotations
 import logging
 import multiprocessing
 import signal
-import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 

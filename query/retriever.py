@@ -24,7 +24,6 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Any
-from uuid import UUID
 
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.models import (

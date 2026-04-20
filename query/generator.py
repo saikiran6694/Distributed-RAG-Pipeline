@@ -12,7 +12,6 @@ The final chunk carries citations and usage stats.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass, field

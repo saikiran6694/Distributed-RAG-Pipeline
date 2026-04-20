@@ -13,7 +13,7 @@ import json
 import pytest
 
 from query.context_expander import ExpandedChunk
-from query.prompt_builder import BuiltPrompt, PromptBuilder, ConversationTurn
+from query.prompt_builder import PromptBuilder, ConversationTurn
 from query.generator import GeneratorChunk
 from query.decomposer import QueryDecomposer
 

@@ -20,10 +20,9 @@ from pathlib import Path
 import chardet
 from unstructured.partition.pdf import partition_pdf
 from unstructured.documents.elements import (
-    Element, Table, Title, NarrativeText, ListItem,
-    Header, Footer, PageBreak, Image,
+    Element, Table, Title,
+    Header, Footer, PageBreak,
 )
-from unstructured.staging.base import elements_to_dicts
 
 from ingestion.workers.base_worker import BaseWorker, PoisonPillError, RetryableError
 from shared.config import get_settings

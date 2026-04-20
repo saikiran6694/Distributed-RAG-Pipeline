@@ -36,7 +36,7 @@ import json
 import logging
 import time
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import numpy as np
