@@ -260,3 +260,34 @@ class PDFWorker(BaseWorker):
         except Exception as e:
             logger.warning("Failed to serialize table to markdown: %s", e)
             return element.text or ""
+        
+
+def start_pdf_worker():
+    """Entrypoint: wire up dependencies and start consuming."""
+    import asyncio
+    import asyncpg
+    from qdrant_client import AsyncQdrantClient
+    from ingestion.embedding.services import EmbeddingService, build_backend
+    from ingestion.storage.writer import StorageWriter
+ 
+    async def _run():
+        cfg  = get_settings()
+        pool = await asyncpg.create_pool(
+            host=cfg.POSTGRES_HOST, port=cfg.POSTGRES_PORT,
+            database=cfg.POSTGRES_DB, user=cfg.POSTGRES_USER,
+            password=cfg.POSTGRES_PASSWORD,
+        )
+        qdrant  = AsyncQdrantClient(host=cfg.QDRANT_HOST, port=cfg.QDRANT_PORT)
+        backend = build_backend()
+        embedder = EmbeddingService(backend=backend, db_pool=pool)
+        writer   = StorageWriter(db_pool=pool, qdrant=qdrant)
+        await writer.ensure_collection()
+ 
+        worker = PDFWorker(embedding_service=embedder, storage_writer=writer)
+        worker.run()
+ 
+    asyncio.run(_run())
+ 
+ 
+if __name__ == "__main__":
+    start_pdf_worker()

@@ -217,7 +217,16 @@ class EmbeddingService:
             EMBEDDING_COST_USD.labels(model=self._backend.model_name).inc(cost_usd)
 
         try:
-            doc_id = str(batch[0].doc_id) if batch else None
+            from uuid import UUID
+            raw_doc_id = batch[0].doc_id if batch else None
+            doc_id = None
+            if raw_doc_id:
+                exists = await self._db.fetchval(
+                    "SELECT id FROM documents WHERE id = $1",
+                    raw_doc_id if isinstance(raw_doc_id, UUID) else UUID(str(raw_doc_id)),
+                )
+                doc_id = exists  # UUID or None
+
             await self._db.execute(
                 """
                 INSERT INTO ingestion_cost_log (doc_id, model, batch_size, token_count, cost_usd)

@@ -32,14 +32,12 @@ from qdrant_client.http.models import (
     HnswConfigDiff,
     OptimizersConfigDiff,
     PayloadSchemaType,
-    QuantizationConfig,
     ScalarQuantization,
     ScalarQuantizationConfig,
     ScalarType,
-    SparseIndexConfig,
+    SparseIndexParams,
     SparseVectorParams,
     VectorParams,
-    VectorsConfig,
 )
 
 from shared.config import get_settings
@@ -116,18 +114,13 @@ async def setup_collection(
                 ),
 
                 # ── Scalar quantization ────────────────────────
-                # Compress float32 vectors to int8.
-                # Memory: 4x reduction (1536 floats * 4 bytes → * 1 byte)
-                # Recall cost: ~1-2% drop, recoverable by raising ef at query time.
-                # always_ram=True: keep quantized vectors in RAM even if
-                # original full-precision vectors are on disk.
-                quantization_config=QuantizationConfig(
-                    scalar=ScalarQuantization(
-                        scalar=ScalarQuantizationConfig(
-                            type=ScalarType.INT8,
-                            quantile=0.99,      # clip top 1% outliers before quantizing
-                            always_ram=True,
-                        )
+                # Compress float32 vectors to int8: 4x memory reduction.
+                # Recall cost ~1-2%, recoverable by raising ef at query time.
+                quantization_config=ScalarQuantization(
+                    scalar=ScalarQuantizationConfig(
+                        type=ScalarType.INT8,
+                        quantile=0.99,
+                        always_ram=True,
                     )
                 ),
             ),
@@ -141,7 +134,7 @@ async def setup_collection(
         # skip the index and do exact search (always optimal for small sets).
         sparse_vectors_config={
             "sparse": SparseVectorParams(
-                index=SparseIndexConfig(
+                index=SparseIndexParams(
                     on_disk=False,
                 )
             )
@@ -221,31 +214,25 @@ async def _ensure_payload_indexes(
 
 async def verify_cluster_health(client: AsyncQdrantClient) -> dict:
     """
-    Check cluster status and return a summary.
-    Logs warnings for any peer not in 'Active' state.
+    Check collection status. Single-node setup — no cluster peers to check.
+    vectors_count is None on an empty collection, so we default to 0.
     """
     info = await client.get_collection(settings.QDRANT_COLLECTION_NAME)
-    cluster_info = await client.retrieve_cluster_info()
 
-    peers = getattr(cluster_info, 'peers', {})
-    active = sum(1 for p in peers.values() if getattr(p, 'state', '') == 'Active')
-    total  = len(peers)
+    vectors_count  = info.vectors_count or 0
+    indexed_vectors = info.indexed_vectors_count or 0
+    status         = str(info.status.value) if hasattr(info.status, "value") else str(info.status)
 
-    if active < total:
-        logger.warning(
-            "Cluster degraded: %d/%d peers active. Check rag-qdrant-node* containers.",
-            active, total,
-        )
-    else:
-        logger.info("Cluster healthy: %d/%d peers active", active, total)
+    logger.info(
+        "Collection '%s': status=%s vectors=%d indexed=%d",
+        settings.QDRANT_COLLECTION_NAME, status, vectors_count, indexed_vectors,
+    )
 
     return {
-        "collection": settings.QDRANT_COLLECTION_NAME,
-        "vectors_count": info.vectors_count,
-        "indexed_vectors": info.indexed_vectors_count,
-        "active_peers": active,
-        "total_peers": total,
-        "status": info.status,
+        "collection":      settings.QDRANT_COLLECTION_NAME,
+        "vectors_count":   vectors_count,
+        "indexed_vectors": indexed_vectors,
+        "status":          status,
     }
 
 

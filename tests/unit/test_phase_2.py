@@ -1,4 +1,6 @@
 """
+tests/unit/test_phase2.py
+
 Unit tests for Phase 2 components:
   - BM25 sparse encoder
   - Reciprocal Rank Fusion logic
@@ -183,29 +185,50 @@ class TestRRFFusion:
 # ─────────────────────────────────────────────────────────────────
 
 class TestQueryDecomposition:
+    """
+    Tests the regex fallback path in QueryDecomposer._parse_response.
+    The LLM-based decompose() is tested in test_phase3.py.
+    Short queries (<=6 words) bypass the LLM and return as-is.
+    """
 
-    def _decompose(self, query):
-        from query.engine import QueryEngine
-        engine = QueryEngine.__new__(QueryEngine)
-        return engine._decompose_query(query)
+    def _decompose_sync(self, query):
+        """
+        For unit tests we test _parse_response directly (no LLM call needed)
+        and the short-query fast-path via decompose() which skips LLM entirely.
+        """
+        import asyncio
+        from query.decomposer import QueryDecomposer
+        decomposer = QueryDecomposer()
+        # decompose() is async but short queries (<=6 words) return immediately
+        return asyncio.get_event_loop().run_until_complete(decomposer.decompose(query))
 
-    def test_simple_query_not_decomposed(self):
-        result = self._decompose("What is machine learning?")
+    def test_simple_short_query_not_decomposed(self):
+        # 4 words — hits the <=6 word fast-path, returns as-is without LLM
+        result = self._decompose_sync("What is machine learning?")
         assert result == ["What is machine learning?"]
 
-    def test_compound_query_decomposed(self):
-        result = self._decompose("What is the refund policy and how long does it take?")
-        assert len(result) == 2
+    def test_single_question_unchanged(self):
+        # 5 words — also hits fast-path
+        q = "How does gradient descent work?"
+        result = self._decompose_sync(q)
+        assert result[0] == q
 
-    def test_very_short_fragment_filtered(self):
-        result = self._decompose("Why? What?")
-        # Both fragments are under 10 chars — should return original query
+    def test_very_short_query_unchanged(self):
+        # 2 words — well under 6 word threshold
+        result = self._decompose_sync("Why? What?")
         assert len(result) >= 1
 
-    def test_single_question_unchanged(self):
-        q = "How does gradient descent work?"
-        result = self._decompose(q)
-        assert result[0] == q
+    def test_parse_response_compound_splits(self):
+        # Test the JSON parse logic directly — no LLM call
+        from query.decomposer import QueryDecomposer
+        d = QueryDecomposer()
+        result = d._parse_response(
+            '{"queries": ["What is the refund policy?", "How long does it take?"]}',
+            "What is the refund policy and how long does it take?"
+        )
+        assert len(result) == 2
+        assert result[0] == "What is the refund policy?"
+        assert result[1] == "How long does it take?"
 
 
 # ─────────────────────────────────────────────────────────────────

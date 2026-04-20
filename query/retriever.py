@@ -33,9 +33,7 @@ from qdrant_client.http.models import (
     MatchValue,
     NamedSparseVector,
     NamedVector,
-    QueryResponse,
     ScoredPoint,
-    SearchRequest,
     SparseVector,
 )
 

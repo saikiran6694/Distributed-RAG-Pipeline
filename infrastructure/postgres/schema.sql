@@ -103,6 +103,7 @@ CREATE TABLE chunks (
     section_title       TEXT,
     page_number         INT,
     source_url          TEXT        NOT NULL,
+    raw_text            TEXT,
 
     -- Hierarchical chunking (null for flat strategies)
     parent_chunk_id     UUID        REFERENCES chunks(id),
