@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 import math
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import tiktoken
@@ -83,7 +83,7 @@ class BM25Encoder:
     #  Fitting (corpus statistics)
     # ─────────────────────────────────────────────────────────
 
-    def fit(self, texts: list[str]) -> "BM25Encoder":
+    def fit(self, texts: list[str]) -> BM25Encoder:
         """
         Compute IDF weights from a corpus.
         Call this once before encoding documents.
@@ -159,7 +159,7 @@ class BM25Encoder:
         tf: Counter[int] = Counter(tokens)
         scores: dict[int, float] = {}
 
-        for token_id, freq in tf.items():
+        for token_id, _freq in tf.items():
             if self._fitted and token_id in self._idf:
                 scores[token_id] = self._idf[token_id]
             else:
@@ -184,7 +184,7 @@ class BM25Encoder:
         logger.info("BM25Encoder saved to %s (%d tokens)", path, len(self._idf))
 
     @classmethod
-    def load(cls, path: str) -> "BM25Encoder":
+    def load(cls, path: str) -> BM25Encoder:
         """Load a previously fitted encoder from disk."""
         import json
         data = json.loads(Path(path).read_text())

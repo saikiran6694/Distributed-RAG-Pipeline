@@ -194,7 +194,9 @@ class TestQueryDecomposition:
         and the short-query fast-path via decompose() which skips LLM entirely.
         """
         import asyncio
+        
         from query.decomposer import QueryDecomposer
+
         decomposer = QueryDecomposer()
         # decompose() is async but short queries (<=6 words) return immediately
         return asyncio.get_event_loop().run_until_complete(decomposer.decompose(query))
