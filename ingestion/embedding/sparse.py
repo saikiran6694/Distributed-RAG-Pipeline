@@ -221,7 +221,10 @@ class BM25Encoder:
         sorted_items = sorted(filtered.items())   # sort by token_id ascending
         if not sorted_items:
             return SparseVector(indices=[], values=[])
-        indices, values = zip(*sorted_items)
+        if sorted_items:
+            indices, values = zip(*sorted_items, strict=True)
+        else:
+            indices, values = (), ()
         return SparseVector(indices=list(indices), values=list(values))
 
 

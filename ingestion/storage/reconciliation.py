@@ -15,7 +15,7 @@ import asyncpg
 from confluent_kafka import Producer
 
 from shared.config import get_settings
-from shared.models import DocumentIngestionMessage, DocType
+from shared.models import DocType, DocumentIngestionMessage
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

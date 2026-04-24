@@ -14,13 +14,12 @@ from __future__ import annotations
 
 import logging
 import re
-from urllib.parse import urljoin, urlparse
 
 import chardet
 import httpx
 import trafilatura
-from trafilatura.settings import use_config
 from bs4 import BeautifulSoup
+from trafilatura.settings import use_config
 
 from ingestion.workers.base_worker import BaseWorker, PoisonPillError, RetryableError
 from shared.config import get_settings

@@ -173,7 +173,7 @@ class EmbeddingService:
                 EMBEDDING_BATCH_DURATION.labels(backend=settings.EMBED_BACKEND).observe(elapsed)
 
                 # Attach vectors and model metadata to chunks
-                for chunk, vector in zip(batch, vectors):
+                for chunk, vector in zip(batch, vectors, strict=True):
                     chunk.vector               = vector
                     chunk.embedding_model      = self._backend.model_name
                     chunk.embedding_model_version = self._backend.model_version

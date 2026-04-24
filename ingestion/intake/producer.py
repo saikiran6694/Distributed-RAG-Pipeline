@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from threading import Event
 
-from confluent_kafka import Producer, KafkaException
+from confluent_kafka import KafkaException, Producer
 from confluent_kafka.admin import AdminClient, NewTopic
 
 from shared.config import get_settings

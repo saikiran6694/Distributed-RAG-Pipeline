@@ -15,13 +15,13 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any
 
-from confluent_kafka import Consumer, KafkaError, KafkaException, Producer, Message
+from confluent_kafka import Consumer, KafkaError, KafkaException, Message, Producer
 
 from shared.config import get_settings
-from shared.models import DocumentIngestionMessage, DLQEvent
+from shared.models import DLQEvent, DocumentIngestionMessage
 from shared.telemetry import (
-    DOCUMENTS_PROCESSED,
     DLQ_MESSAGES,
+    DOCUMENTS_PROCESSED,
     INGESTION_DURATION,
     traced_span,
 )

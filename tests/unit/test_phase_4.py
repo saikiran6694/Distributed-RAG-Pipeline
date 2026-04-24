@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 
-from query.reranker import CrossEncoderReranker
 from query.context_expander import ExpandedChunk
+from query.reranker import CrossEncoderReranker
 
 
 # ── Helpers ───────────────────────────────────────────────────────
