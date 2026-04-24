@@ -1,6 +1,4 @@
 """
-tests/unit/test_phase2.py
-
 Unit tests for Phase 2 components:
   - BM25 sparse encoder
   - Reciprocal Rank Fusion logic
@@ -139,10 +137,10 @@ class TestRRFFusion:
 
     def test_fusion_with_mock_retriever(self):
         """End-to-end RRF fusion via HybridRetriever._reciprocal_rank_fusion."""
-        from query.retriever import HybridRetriever
-
-        from unittest.mock import MagicMock
         from qdrant_client.http.models import ScoredPoint
+        from unittest.mock import MagicMock
+
+        from query.retriever import HybridRetriever
 
         retriever = HybridRetriever.__new__(HybridRetriever)
 

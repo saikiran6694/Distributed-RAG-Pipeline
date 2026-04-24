@@ -1,6 +1,4 @@
 """
-tests/unit/test_phase3.py
-
 Unit tests for Phase 3 components:
   - PromptBuilder: token budgeting, citation numbering, chunk formatting
   - QueryDecomposer: fallback behavior, response parsing

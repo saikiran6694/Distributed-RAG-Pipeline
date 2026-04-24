@@ -1,6 +1,4 @@
 """
-tests/unit/test_phase4.py
-
 Unit tests for Phase 4 components:
   - CrossEncoderReranker: ordering, top_k, single chunk passthrough
   - SemanticCache: cosine similarity math, hit/miss logic, TTL tracking
