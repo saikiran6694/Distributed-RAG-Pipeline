@@ -7,12 +7,14 @@ No external services required.
 from __future__ import annotations
 
 import uuid
+
 import pytest
 
-from shared.models import ChunkingStrategy, ParsedDocument, Section
 from ingestion.chunking.fixed import FixedChunker
-from ingestion.chunking.semantic import SemanticChunker
 from ingestion.chunking.hierarical import HierarchicalChunker
+from ingestion.chunking.semantic import SemanticChunker
+
+from shared.models import ChunkingStrategy, ParsedDocument, Section
 
 
 # ─────────────────────────────────────────────────────────────────

@@ -19,12 +19,12 @@ import pytest
 import pytest_asyncio
 from qdrant_client import AsyncQdrantClient
 
-from shared.config import get_settings
-from shared.models import DocType, ParsedDocument, Section
 from ingestion.chunking.fixed import FixedChunker
 from ingestion.chunking.hierarical import HierarchicalChunker
 from ingestion.embedding.services import EmbeddingService, HuggingFaceBackend
 from ingestion.storage.writer import StorageWriter
+from shared.config import get_settings
+from shared.models import DocType, ParsedDocument, Section
 
 settings = get_settings()
 
