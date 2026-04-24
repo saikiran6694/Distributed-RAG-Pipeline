@@ -222,9 +222,10 @@ class QueryEngine:
 
             # Step 5: Deduplicate
             deduped = self._deduplicate(expanded)
-
-            # Step 6: Rerank (top-30 → top-10)
+        
+            # Step 6: Rerank (top-30 → top-k)
             if request.use_reranker and len(deduped) > 1:
+                self._reranker.update_top_k(top_k=request.top_k)
                 ranked = self._reranker.rerank(request.query, deduped)
                 self._last_reranked = True
                 logger.info(

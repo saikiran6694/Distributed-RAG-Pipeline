@@ -81,7 +81,7 @@ class LLMGenerator:
                 if settings.EMBED_BACKEND == "openai" and settings.OPENAI_API_KEY:
                     async for chunk in self._stream_openai(messages, prompt, t0):
                         yield chunk
-                elif settings.GROP_API_KEY:
+                elif settings.GROQ_API_KEY:
                     async for chunk in self._stream_groq(messages, prompt, t0):
                         yield chunk
                 else:
@@ -166,7 +166,7 @@ class LLMGenerator:
             timeout=120,
         ) as client:
             async with client.stream("POST", "/api/chat", json={
-                "model":    "llama3.2:1b",
+                "model":    settings.OLLAMA_MODEL_NAME,
                 "messages": messages,
                 "stream":   True,
                 "options":  {"temperature": 0.2, "num_predict": _RESPONSE_BUDGET},
@@ -224,20 +224,12 @@ class LLMGenerator:
         Groq runs open-source models (Llama, Mixtral) on custom hardware —
         typically 10-20x faster than Ollama on CPU.
  
-        Requires: pip install groq
-        Config:   GROQ_API_KEY=gsk_...  in .env
-                  GROQ_MODEL=llama-3.3-70b-versatile  (default)
- 
-        Popular models:
-          llama-3.3-70b-versatile   — best quality, still very fast
-          llama-3.1-8b-instant      — fastest, good for low-latency
-          mixtral-8x7b-32768        — large context window (32k)
         """
         from groq import AsyncGroq
-        client = AsyncGroq(api_key=settings.GROP_API_KEY)
+        client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
         response_stream = await client.chat.completions.create(
-            model=settings.GROP_LLAMA_MODEL_NAME,
+            model=settings.GROQ_LLAMA_MODEL_NAME,
             messages=messages,
             temperature=0.2,
             max_tokens=_RESPONSE_BUDGET,

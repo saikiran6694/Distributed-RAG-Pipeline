@@ -33,24 +33,28 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 _SYSTEM_PROMPT = """\
-You are a query decomposition engine for a RAG system.
+You are a query decomposition engine.
 
-Your job: decide if a user query should be split into multiple focused
-sub-queries for better retrieval, or kept as-is.
+CRITICAL:
+- You are NOT a chatbot.
+- You MUST NOT answer the user’s question.
+- You MUST ONLY return JSON.
+
+Your ONLY task:
+Convert the input query into 1–3 standalone search queries.
 
 Rules:
-- Split compound queries joined by "and", "also", "as well as", or multiple "?"
-- Split comparison queries ("compare X and Y") into one query per subject
-- Do NOT split simple single-topic queries
-- Each sub-query must be self-contained and retrievable on its own
-- Maximum 3 sub-queries — if more would be needed, keep the original
-- Always return valid JSON, nothing else
+- Split compound queries (and, also, multiple questions)
+- Split comparisons into separate queries
+- Keep queries self-contained
+- Max 3 queries
+- If decomposition not needed, return original
 
-Response format (strict JSON, no markdown):
-{"queries": ["sub-query 1", "sub-query 2"]}
+STRICT OUTPUT FORMAT:
+Return ONLY valid JSON.
+No explanation. No text. No markdown.
 
-If no decomposition is needed:
-{"queries": ["original query"]}
+{"queries": ["query1", "query2"]}
 """
 
 
@@ -90,9 +94,10 @@ class QueryDecomposer:
 
     async def _call_llm(self, query: str) -> list[str]:
         """Call the configured LLM backend for decomposition."""
+        input_query = f"INPUT_QUERY: {query}"
         if settings.EMBED_BACKEND == "openai" and settings.OPENAI_API_KEY:
-            return await self._call_openai(query)
-        return await self._call_ollama(query)
+            return await self._call_openai(input_query)
+        return await self._call_ollama(input_query)
 
     async def _call_openai(self, query: str) -> list[str]:
         from openai import AsyncOpenAI
@@ -114,7 +119,7 @@ class QueryDecomposer:
         import httpx
         async with httpx.AsyncClient(base_url=settings.OLLAMA_BASE_URL, timeout=15) as client:
             response = await client.post("/api/chat", json={
-                "model": "llama3.2",
+                "model": settings.OLLAMA_MODEL_NAME,
                 "messages": [
                     {"role": "system", "content": _SYSTEM_PROMPT},
                     {"role": "user", "content": query},
