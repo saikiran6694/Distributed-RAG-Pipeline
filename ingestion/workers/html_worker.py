@@ -214,8 +214,10 @@ class HTMLWorker(BaseWorker):
 def start_html_worker():
     """Entrypoint: wire up dependencies and start consuming."""
     import asyncio
+
     import asyncpg
     from qdrant_client import AsyncQdrantClient
+
     from ingestion.embedding.services import EmbeddingService, build_backend
     from ingestion.storage.writer import StorageWriter
  
