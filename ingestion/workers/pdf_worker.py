@@ -18,11 +18,15 @@ import tempfile
 from pathlib import Path
 
 import chardet
-from unstructured.partition.pdf import partition_pdf
 from unstructured.documents.elements import (
-    Element, Table, Title,
-    Header, Footer, PageBreak,
+    Element,
+    Footer,
+    Header,
+    PageBreak,
+    Table,
+    Title,
 )
+from unstructured.partition.pdf import partition_pdf
 
 from ingestion.workers.base_worker import BaseWorker, PoisonPillError, RetryableError
 from shared.config import get_settings
@@ -79,7 +83,7 @@ class PDFWorker(BaseWorker):
                 response.raise_for_status()
                 return response.content
 
-        except (IOError, OSError) as e:
+        except OSError as e:
             raise RetryableError(f"Fetch failed: {e}") from e
 
     def _fetch_from_s3(self, s3_url: str) -> bytes:
@@ -264,8 +268,10 @@ class PDFWorker(BaseWorker):
 def start_pdf_worker():
     """Entrypoint: wire up dependencies and start consuming."""
     import asyncio
+
     import asyncpg
     from qdrant_client import AsyncQdrantClient
+
     from ingestion.embedding.services import EmbeddingService, build_backend
     from ingestion.storage.writer import StorageWriter
  

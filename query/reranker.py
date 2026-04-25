@@ -84,6 +84,9 @@ class CrossEncoderReranker:
     def __init__(self, top_k: int = 10):
         self.top_k = top_k
 
+    def update_top_k(self, top_k: int = 10):
+        self.top_k = top_k
+
     def rerank(
         self,
         query:  str,

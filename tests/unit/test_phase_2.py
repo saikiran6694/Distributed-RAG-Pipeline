@@ -1,6 +1,4 @@
 """
-tests/unit/test_phase2.py
-
 Unit tests for Phase 2 components:
   - BM25 sparse encoder
   - Reciprocal Rank Fusion logic
@@ -9,7 +7,6 @@ Unit tests for Phase 2 components:
 """
 
 from __future__ import annotations
-
 
 from ingestion.embedding.sparse import BM25Encoder
 
@@ -99,7 +96,7 @@ class TestBM25Encoder:
         v1 = enc.encode_document("machine learning")
         v2 = loaded.encode_document("machine learning")
         assert v1.indices == v2.indices
-        assert all(abs(a - b) < 1e-6 for a, b in zip(v1.values, v2.values))
+        assert all(abs(a - b) < 1e-6 for a, b in zip(v1.values, v2.values, strict=True))
 
     def test_to_qdrant_dict_format(self):
         enc = BM25Encoder()
@@ -140,9 +137,10 @@ class TestRRFFusion:
 
     def test_fusion_with_mock_retriever(self):
         """End-to-end RRF fusion via HybridRetriever._reciprocal_rank_fusion."""
-        from query.retriever import HybridRetriever
-        from unittest.mock import MagicMock
         from qdrant_client.http.models import ScoredPoint
+        from unittest.mock import MagicMock
+
+        from query.retriever import HybridRetriever
 
         retriever = HybridRetriever.__new__(HybridRetriever)
 
@@ -194,7 +192,9 @@ class TestQueryDecomposition:
         and the short-query fast-path via decompose() which skips LLM entirely.
         """
         import asyncio
+        
         from query.decomposer import QueryDecomposer
+
         decomposer = QueryDecomposer()
         # decompose() is async but short queries (<=6 words) return immediately
         return asyncio.get_event_loop().run_until_complete(decomposer.decompose(query))

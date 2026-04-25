@@ -1,6 +1,4 @@
 """
-tests/unit/test_phase4.py
-
 Unit tests for Phase 4 components:
   - CrossEncoderReranker: ordering, top_k, single chunk passthrough
   - SemanticCache: cosine similarity math, hit/miss logic, TTL tracking
@@ -9,14 +7,13 @@ Unit tests for Phase 4 components:
 from __future__ import annotations
 
 import json
-import math
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
 
-from query.reranker import CrossEncoderReranker
 from query.context_expander import ExpandedChunk
+from query.reranker import CrossEncoderReranker
 
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -262,7 +259,7 @@ class TestQueryEngineRerankFlag:
     """Verify use_reranker=False bypasses the reranker."""
 
     def test_use_reranker_false_skips_rerank(self):
-        from query.engine import QueryEngine, QueryRequest
+        from query.engine import QueryEngine
         engine = QueryEngine.__new__(QueryEngine)
 
         # _deduplicate should return chunks as-is when use_reranker=False

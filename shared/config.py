@@ -4,11 +4,20 @@ Pydantic Settings validates types and provides defaults.
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
+ENV_PATH = Path(__file__).parent.parent / ".env"
+
+if ENV_PATH.exists():
+    print(f"Loading environment variables from {ENV_PATH}")
+else:    
+    print(f"Warning: {ENV_PATH} not found. Make sure to create a .env file with the required environment variables.")
+    
 
 class Settings(BaseSettings):
     # ── Service identity ──────────────────────────────────────
@@ -110,13 +119,14 @@ class Settings(BaseSettings):
     HF_EMBED_DIM:           int = 384
     HF_DEVICE:              str = "cpu"         # 'cpu' | 'cuda' | 'mps'
 
-    GROP_API_KEY:           str
-    GROP_LLAMA_MODEL_NAME:  str = "llama-3.3-70b-versatile"
+    GROQ_API_KEY:           str | None = None
+    GROQ_LLAMA_MODEL_NAME:  str = "llama-3.3-70b-versatile"
 
     # Ollama
     OLLAMA_BASE_URL:        str = "http://localhost:11434"
     OLLAMA_EMBED_MODEL:     str = "nomic-embed-text"
     OLLAMA_EMBED_DIM:       int = 768
+    OLLAMA_MODEL_NAME:      str = "llama3.2:1b"
     
 
     # ── Observability ─────────────────────────────────────────
@@ -130,7 +140,7 @@ class Settings(BaseSettings):
     RECONCILIATION_STALE_MINUTES:    int = 10        # re-queue pending_vector older than this
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_PATH if ENV_PATH.exists else None,
         env_file_encoding="utf-8",
         case_sensitive=True,
     )

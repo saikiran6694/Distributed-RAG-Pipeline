@@ -14,11 +14,10 @@ from __future__ import annotations
 import hashlib
 import logging
 from pathlib import Path
-from uuid import uuid4
 from typing import Literal
 
-import magic                   # python-magic: libmagic bindings
 import asyncpg
+import magic  # python-magic: libmagic bindings
 
 from shared.config import get_settings
 from shared.models import DocType, DocumentIngestionMessage

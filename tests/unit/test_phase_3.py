@@ -1,6 +1,4 @@
 """
-tests/unit/test_phase3.py
-
 Unit tests for Phase 3 components:
   - PromptBuilder: token budgeting, citation numbering, chunk formatting
   - QueryDecomposer: fallback behavior, response parsing
@@ -10,12 +8,13 @@ Unit tests for Phase 3 components:
 from __future__ import annotations
 
 import json
+
 import pytest
 
 from query.context_expander import ExpandedChunk
-from query.prompt_builder import PromptBuilder, ConversationTurn
-from query.generator import GeneratorChunk
 from query.decomposer import QueryDecomposer
+from query.generator import GeneratorChunk
+from query.prompt_builder import ConversationTurn, PromptBuilder
 
 
 # ── Helpers ───────────────────────────────────────────────────────
