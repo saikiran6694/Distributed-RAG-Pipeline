@@ -24,20 +24,20 @@ import logging
 import multiprocessing
 import signal
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-MAX_RESTARTS   = 5
-RESTART_DELAY  = 3   # seconds before restarting a crashed worker
+MAX_RESTARTS  = 5
+RESTART_DELAY = 3
 
 
 @dataclass
 class WorkerSpec:
     name:      str
-    target_fn: str       # dotted import path to the start_*_worker function
+    target_fn: str
     restarts:  int = 0
-    process:   multiprocessing.Process | None = None
+    process:   multiprocessing.Process | None = field(default=None, compare=False)
 
 
 def _run_worker(target_fn: str) -> None:
@@ -45,15 +45,10 @@ def _run_worker(target_fn: str) -> None:
     module_path, fn_name = target_fn.rsplit(".", 1)
     import importlib
     mod = importlib.import_module(module_path)
-    fn  = getattr(mod, fn_name)
-    fn()
+    getattr(mod, fn_name)()
 
 
 class WorkerManager:
-    """
-    Supervisor that starts and monitors all ingestion worker processes.
-    Restarts crashed workers up to MAX_RESTARTS times.
-    """
 
     def __init__(self):
         self._specs: list[WorkerSpec] = [
@@ -71,11 +66,9 @@ class WorkerManager:
         )
         logger.info("WorkerManager starting %d workers", len(self._specs))
 
-        # Start all workers
         for spec in self._specs:
             self._start(spec)
 
-        # Monitor loop
         while self._running:
             time.sleep(2)
             for spec in self._specs:
@@ -84,10 +77,8 @@ class WorkerManager:
                 if spec.process and not spec.process.is_alive():
                     exit_code = spec.process.exitcode
                     if spec.restarts >= MAX_RESTARTS:
-                        logger.error(
-                            "%s exceeded max restarts (%d) — giving up",
-                            spec.name, MAX_RESTARTS,
-                        )
+                        logger.error("%s exceeded max restarts (%d) — giving up",
+                                     spec.name, MAX_RESTARTS)
                         continue
                     logger.warning(
                         "%s died (exit=%d), restarting in %ds (attempt %d/%d)",
@@ -101,7 +92,9 @@ class WorkerManager:
         self._stop_all()
 
     def _start(self, spec: WorkerSpec) -> None:
-        p = multiprocessing.Process(
+        # Use spawn context — avoids inheriting parent's event loop state
+        ctx = multiprocessing.get_context("spawn")
+        p = ctx.Process(
             target=_run_worker,
             args=(spec.target_fn,),
             name=spec.name,

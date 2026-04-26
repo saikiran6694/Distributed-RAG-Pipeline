@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from pathlib import Path
 
 import asyncpg
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
@@ -159,11 +160,23 @@ async def ingest_file(
     Supported formats: .pdf  .html  .htm  .md  .txt  .docx
 
     direct=true  (default) — process synchronously, return when indexed.
-    direct=false           — publish to Kafka, return immediately with doc_id.
+    direct=false           — save file to disk, publish to Kafka, workers fetch by path.
     """
     _require_deps()
     file_bytes = await file.read()
-    source_url = f"file://uploads/{file.filename}"
+
+    if not direct:
+        # Workers fetch the file from disk — save to a persistent upload dir
+        import tempfile, os
+        upload_dir = Path(settings.UPLOAD_DIR) if hasattr(settings, "UPLOAD_DIR")                      else Path(tempfile.gettempdir()) / "rag_uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        safe_name  = file.filename.replace(" ", "_")
+        saved_path = upload_dir / safe_name
+        saved_path.write_bytes(file_bytes)
+        source_url = f"file://{saved_path.resolve()}"
+    else:
+        source_url = f"file://uploads/{file.filename}"
+
     return await _ingest_bytes(
         file_bytes=file_bytes,
         source_url=source_url,

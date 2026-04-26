@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     KAFKA_TOPIC_EVENTS:         str = "ingestion-events"
     KAFKA_CONSUMER_GROUP:       str = "rag-ingestion-workers"
     KAFKA_MAX_POLL_INTERVAL_MS: int = 300_000   # 5 min — parsing can be slow
-    KAFKA_SESSION_TIMEOUT_MS:   int = 45_000
+    KAFKA_SESSION_TIMEOUT_MS:   int = 120_000
     KAFKA_MAX_RETRIES:          int = 3         # before routing to DLQ
 
     # ── PostgreSQL ────────────────────────────────────────────

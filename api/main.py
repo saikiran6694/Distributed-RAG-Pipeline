@@ -28,6 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from qdrant_client import AsyncQdrantClient
 
 from api.ingest import router as ingest_router, set_ingest_dependencies
+from ingestion.intake.producer import ensure_topics_exist
 from infrastructure.qdrant.collection_setup import setup_collection
 from ingestion.embedding.services import EmbeddingService, build_backend
 from ingestion.embedding.sparse import get_encoder
@@ -74,6 +75,13 @@ async def lifespan(app: FastAPI):
     _redis = aioredis.from_url(settings.redis_url, decode_responses=False)
     await _redis.ping()
     logger.info("Redis connected")
+
+    # Kafka topics (idempotent — safe to call every startup)
+    try:
+        ensure_topics_exist()
+        logger.info("Kafka topics ready")
+    except Exception as e:
+        logger.warning("Kafka topic setup failed (workers may not function): %s", e)
 
     # Qdrant
     _qdrant = AsyncQdrantClient(
