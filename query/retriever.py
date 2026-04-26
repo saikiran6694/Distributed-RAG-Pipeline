@@ -106,13 +106,16 @@ class HybridRetriever:
         source_url_filter: str | None = None,
         hierarchy_level_filter: int | None = None,
         prefetch_k: int | None = None,
+        score_threshold: float | None = None,
     ) -> RetrievalResult:
         """
         Run hybrid retrieval for a query string.
 
         Args:
             query:                  Natural language query
-            top_k:                  Number of chunks to return after fusion
+            top_k:                  Maximum number of chunks to return after fusion.
+                                    Actual count may be lower if chunks fall below
+                                    score_threshold.
             ef:                     HNSW ef parameter — higher = better recall, slower
                                     64=fast, 128=balanced (default), 256=best recall
             doc_id_filter:          Restrict to a single document
@@ -120,6 +123,11 @@ class HybridRetriever:
             hierarchy_level_filter: Restrict to a specific hierarchy level (0/1/2)
             prefetch_k:             How many results to fetch from each sub-search
                                     before fusion. Defaults to top_k * 3.
+            score_threshold:        Minimum RRF score to include a chunk. Chunks below
+                                    this score are dropped even if top_k not reached.
+                                    RRF scores range ~0.008–0.033 for typical queries.
+                                    Default: 0.01 (drops chunks ranked very low in both
+                                    dense and sparse results).
         """
         import time
         t0 = time.monotonic()
@@ -146,6 +154,18 @@ class HybridRetriever:
 
             # Fuse results with RRF
             fused = self._reciprocal_rank_fusion(dense_hits, sparse_hits, top_k)
+
+            # Apply relevance threshold — drop chunks that scored too low
+            # even if top_k not yet reached. This prevents padding responses
+            # with irrelevant chunks when fewer than top_k are actually relevant.
+            threshold = score_threshold if score_threshold is not None else 0.01
+            before_filter = len(fused)
+            fused = [c for c in fused if c.score >= threshold]
+            if len(fused) < before_filter:
+                logger.debug(
+                    "Score threshold %.4f filtered %d/%d chunks",
+                    threshold, before_filter - len(fused), before_filter,
+                )
 
             latency_ms = (time.monotonic() - t0) * 1000
 
