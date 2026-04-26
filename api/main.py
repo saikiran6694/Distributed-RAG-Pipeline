@@ -1,5 +1,5 @@
 """
-FastAPI application — Distributed RAG Pipeline (Phases 1–4).
+FastAPI application — Distributed RAG Pipeline.
 
 Endpoints:
   POST /ingest/file            — upload a file
@@ -159,6 +159,7 @@ class QueryRequestSchema(BaseModel):
     history:                list[TurnSchema] = Field(default_factory=list)
     use_cache:              bool = True
     use_reranker:           bool = True
+    score_threshold:        float = Field(default=0.01, ge=0.0, le=1.0)
 
 
 class CitationSchema(BaseModel):
@@ -253,6 +254,7 @@ async def query(request: QueryRequestSchema):
         stream=False,
         use_cache=request.use_cache,
         use_reranker=request.use_reranker,
+        score_threshold=request.score_threshold,
     ))
 
     return QueryResponseSchema(
@@ -299,6 +301,7 @@ async def query_stream(request: QueryRequestSchema):
         stream=True,
         use_cache=request.use_cache,
         use_reranker=request.use_reranker,
+        score_threshold=request.score_threshold,
     )
 
     async def event_generator():

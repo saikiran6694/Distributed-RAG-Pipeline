@@ -1,6 +1,4 @@
 """
-query/engine.py
-
 Query engine: full RAG pipeline orchestrator (Phase 4).
 
 Sequence:
@@ -58,6 +56,7 @@ class QueryRequest:
     stream:                 bool = True
     use_cache:              bool = True     # set False to bypass cache (debug)
     use_reranker:           bool = True     # set False to skip reranking
+    score_threshold:        float = 0.01    # min RRF score — filters irrelevant chunks
 
 
 @dataclass
@@ -213,6 +212,7 @@ class QueryEngine:
                     doc_id_filter=request.doc_id_filter,
                     source_url_filter=request.source_url_filter,
                     hierarchy_level_filter=request.hierarchy_level_filter,
+                    score_threshold=request.score_threshold,
                 )
             else:
                 retrieval = await self._retrieve_multi(request, sub_queries, prefetch)
@@ -283,6 +283,7 @@ class QueryEngine:
                 doc_id_filter=request.doc_id_filter,
                 source_url_filter=request.source_url_filter,
                 hierarchy_level_filter=request.hierarchy_level_filter,
+                score_threshold=request.score_threshold,
             )
             for q in sub_queries
         ]
