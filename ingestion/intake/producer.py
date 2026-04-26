@@ -33,10 +33,10 @@ class IngestionProducer:
     def __init__(self):
         self._producer = Producer({
             "bootstrap.servers":   settings.KAFKA_BOOTSTRAP_SERVERS,
-            "acks":                "all",           # strongest durability guarantee
+            "acks":                "1",             # single broker — leader ack sufficient
             "retries":             5,
             "retry.backoff.ms":    200,
-            "enable.idempotence":  True,            # exactly-once producer semantics
+            "enable.idempotence":  False,           # disabled — single broker, not needed
             "compression.type":    "snappy",        # reduce wire size
             "linger.ms":           10,              # small batching window
             "batch.size":          65536,
@@ -78,11 +78,16 @@ class IngestionProducer:
             on_delivery=on_delivery,
         )
 
-        # Poll until delivery callback fires (max 30s)
-        self._producer.poll(0)
-        delivered = delivery_event.wait(timeout=30)
+        # Poll continuously until delivery callback fires (max 30s)
+        # poll(0) only checks once — must loop to actually trigger callbacks
+        import time
+        deadline = time.monotonic() + 30
+        while not delivery_event.is_set():
+            self._producer.poll(0.5)   # poll for 500ms, triggers callbacks
+            if time.monotonic() > deadline:
+                break
 
-        if not delivered:
+        if not delivery_event.is_set():
             raise TimeoutError(f"Kafka delivery timed out for doc {message.doc_id}")
         if delivery_error:
             raise delivery_error[0]

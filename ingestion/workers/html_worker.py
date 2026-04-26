@@ -41,32 +41,33 @@ class HTMLWorker(BaseWorker):
 
     worker_name = "html-worker"
 
-    def __init__(self, chunker, storage):
+    def __init__(self, embedding_service, storage_writer):
         super().__init__()
-        self._chunker = chunker
-        self._storage = storage
+        self._embedder = embedding_service
+        self._storage  = storage_writer
+        from ingestion.chunking.selector import ChunkingStrategySelector
+        self._selector = ChunkingStrategySelector()
 
     def _process(self, message: DocumentIngestionMessage) -> None:
+        import asyncio
         raw_bytes = self._fetch_html(message.source_url)
-        parsed = self._parse_html(raw_bytes, message)
-        chunks = self._chunker.chunk(parsed)
-        self._storage.store(chunks, parsed)
+        parsed    = self._parse_html(raw_bytes, message)
+        chunker   = self._selector.get(message.doc_type)
+        chunks    = chunker.chunk(parsed)
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._store(chunks, parsed))
 
-    # ─────────────────────────────────────────────────────────
-    #  Fetch
-    # ─────────────────────────────────────────────────────────
+    async def _store(self, chunks, parsed) -> None:
+        embedded = await self._embedder.embed_chunks(chunks)
+        await self._storage.store(embedded, parsed)
 
     def _fetch_html(self, source_url: str) -> bytes:
         if source_url.startswith("file://"):
             from pathlib import Path
             return Path(source_url.replace("file://", "")).read_bytes()
-
         try:
-            with httpx.Client(
-                timeout=20,
-                follow_redirects=True,
-                headers={"User-Agent": "RAG-Ingestion-Bot/1.0"},
-            ) as client:
+            with httpx.Client(timeout=20, follow_redirects=True,
+                               headers={"User-Agent": "RAG-Ingestion-Bot/1.0"}) as client:
                 response = client.get(source_url)
                 response.raise_for_status()
                 return response.content
@@ -77,112 +78,58 @@ class HTMLWorker(BaseWorker):
         except httpx.RequestError as e:
             raise RetryableError(f"Network error: {e}") from e
 
-    # ─────────────────────────────────────────────────────────
-    #  Parse
-    # ─────────────────────────────────────────────────────────
-
-    def _parse_html(
-        self,
-        raw_bytes: bytes,
-        message: DocumentIngestionMessage,
-    ) -> ParsedDocument:
-        # Detect and decode encoding before passing to trafilatura
+    def _parse_html(self, raw_bytes: bytes, message: DocumentIngestionMessage) -> ParsedDocument:
         html_str = self._decode_html(raw_bytes)
-
-        # Extract title and metadata from head (before trafilatura strips it)
         title, author = self._extract_meta(html_str, message.source_url)
-
-        # Main content extraction
         main_text = trafilatura.extract(
-            html_str,
-            config=_TRAF_CONFIG,
-            include_tables=True,
-            include_links=False,
-            include_images=False,
-            no_fallback=False,
-            favor_precision=True,
+            html_str, config=_TRAF_CONFIG, include_tables=True,
+            include_links=False, no_fallback=False, favor_precision=True,
         )
-
         if not main_text or len(main_text.strip()) < 100:
-            raise PoisonPillError(
-                f"trafilatura extracted less than 100 chars from {message.source_url} "
-                "— likely a JS-rendered page or mostly non-text content"
-            )
-
-        # Reconstruct sections from heading structure in original HTML
+            raise PoisonPillError(f"Too little content extracted from {message.source_url}")
         sections = self._extract_sections(html_str)
-
         return ParsedDocument(
-            doc_id=message.doc_id,
-            source_url=message.source_url,
-            doc_type=message.doc_type,
-            raw_text=main_text,
-            sections=sections,
-            title=title,
-            author=author,
+            doc_id=message.doc_id, source_url=message.source_url,
+            doc_type=message.doc_type, raw_text=main_text,
+            sections=sections, title=title, author=author,
         )
 
     def _decode_html(self, raw_bytes: bytes) -> str:
-        """
-        Detect charset from HTTP meta tag or chardet, then decode.
-        Always returns valid UTF-8 string.
-        """
-        # Try to find charset in meta tag (fast path)
         head_sample = raw_bytes[:4096].decode("ascii", errors="replace")
         charset_match = re.search(r'charset=["\']?([\w-]+)', head_sample, re.IGNORECASE)
         if charset_match:
-            declared_charset = charset_match.group(1)
             try:
-                return raw_bytes.decode(declared_charset, errors="replace")
+                return raw_bytes.decode(charset_match.group(1), errors="replace")
             except LookupError:
                 pass
-
-        # Fall back to chardet detection
         detected = chardet.detect(raw_bytes[:8192])
         encoding = detected.get("encoding") or "utf-8"
         return raw_bytes.decode(encoding, errors="replace")
 
     def _extract_meta(self, html: str, source_url: str) -> tuple[str | None, str | None]:
-        """Extract title and author from HTML head metadata."""
         try:
             soup = BeautifulSoup(html[:8192], "html.parser")
-            title = None
-            author = None
-
-            if soup.title:
-                title = soup.title.string
-
-            # Open Graph title takes priority over <title>
+            title = soup.title.string if soup.title else None
             og_title = soup.find("meta", property="og:title")
             if og_title and og_title.get("content"):
                 title = og_title["content"]
-
+            author = None
             for meta in soup.find_all("meta"):
-                name = meta.get("name", "").lower()
-                if name in ("author", "twitter:creator"):
+                if meta.get("name", "").lower() in ("author", "twitter:creator"):
                     author = meta.get("content")
                     break
-
             return title, author
         except Exception:
             return None, None
 
     def _extract_sections(self, html: str) -> list[Section]:
-        """
-        Reconstruct document sections from heading hierarchy.
-        Preserves reading order and section context for chunker.
-        """
         sections: list[Section] = []
         try:
             soup = BeautifulSoup(html, "html.parser")
             main = soup.find("main") or soup.find("article") or soup.body
             if not main:
                 return sections
-
-            current_title: str | None = None
-            current_content: list[str] = []
-            current_level = 1
-
+            current_title, current_content, current_level = None, [], 1
             for tag in main.find_all(["h1", "h2", "h3", "h4", "p", "li"]):
                 if tag.name in ("h1", "h2", "h3", "h4"):
                     if current_title and current_content:
@@ -198,21 +145,17 @@ class HTMLWorker(BaseWorker):
                     text = tag.get_text(strip=True)
                     if text:
                         current_content.append(text)
-
             if current_title and current_content:
-                sections.append(Section(
-                    title=current_title,
-                    content=" ".join(current_content),
-                    level=current_level,
-                ))
+                sections.append(Section(title=current_title,
+                                        content=" ".join(current_content),
+                                        level=current_level))
         except Exception as e:
             logger.warning("Section extraction failed: %s", e)
-
         return sections
-    
+
 
 def start_html_worker():
-    """Entrypoint: wire up dependencies and start consuming."""
+    """Entrypoint: setup async resources, then run sync consumer loop."""
     import asyncio
 
     import asyncpg
@@ -220,10 +163,14 @@ def start_html_worker():
 
     from ingestion.embedding.services import EmbeddingService, build_backend
     from ingestion.storage.writer import StorageWriter
- 
-    async def _run():
-        cfg     = get_settings()
-        pool    = await asyncpg.create_pool(
+
+    cfg = get_settings()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    async def _setup():
+        pool = await asyncpg.create_pool(
             host=cfg.POSTGRES_HOST, port=cfg.POSTGRES_PORT,
             database=cfg.POSTGRES_DB, user=cfg.POSTGRES_USER,
             password=cfg.POSTGRES_PASSWORD,
@@ -233,12 +180,16 @@ def start_html_worker():
         embedder = EmbeddingService(backend=backend, db_pool=pool)
         writer   = StorageWriter(db_pool=pool, qdrant=qdrant)
         await writer.ensure_collection()
- 
-        worker = HTMLWorker(embedding_service=embedder, storage_writer=writer)
+        return embedder, writer
+
+    embedder, writer = loop.run_until_complete(_setup())
+    worker = HTMLWorker(embedding_service=embedder, storage_writer=writer)
+
+    try:
         worker.run()
- 
-    asyncio.run(_run())
- 
- 
+    finally:
+        loop.close()
+
+
 if __name__ == "__main__":
     start_html_worker()
