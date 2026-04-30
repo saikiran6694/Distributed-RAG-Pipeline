@@ -12,6 +12,12 @@ A production-grade distributed Retrieval-Augmented Generation (RAG) pipeline bui
 
 ---
 
+## Demo
+Demo link: https://drive.google.com/file/d/1v1J5rRRTQvvq9AchgDY2CXUc1n4MtFbo/view?usp=sharing
+
+---
+
+
 ## Architecture
 
 ```
