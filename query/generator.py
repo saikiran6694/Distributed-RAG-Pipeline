@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator
 
 from query.prompt_builder import BuiltPrompt
 from shared.config import get_settings
@@ -33,19 +33,23 @@ class GeneratorChunk:
     done: True only on the last chunk
     citations: populated only on the final chunk
     """
-    delta:      str
-    done:       bool              = False
-    citations:  list[dict]        = field(default_factory=list)
-    usage:      dict              = field(default_factory=dict)
-    latency_ms: float             = 0.0
+
+    delta: str
+    done: bool = False
+    citations: list[dict] = field(default_factory=list)
+    usage: dict = field(default_factory=dict)
+    latency_ms: float = 0.0
+    groundedness: dict | None = field(default=None)
 
     def to_sse(self) -> str:
         """Format as a Server-Sent Event string."""
         import json
+
         data = {
-            "delta":     self.delta,
-            "done":      self.done,
+            "delta": self.delta,
+            "done": self.done,
             "citations": self.citations if self.done else [],
+            "groundedness": self.groundedness if self.done else None,
         }
         if self.done and self.usage:
             data["usage"] = self.usage
@@ -71,7 +75,8 @@ class LLMGenerator:
         Stream response chunks. Always ends with a chunk where done=True.
         """
         from query.prompt_builder import PromptBuilder
-        builder  = PromptBuilder()
+
+        builder = PromptBuilder()
         messages = builder.build_messages(prompt, history)
 
         t0 = time.monotonic()
@@ -103,10 +108,11 @@ class LLMGenerator:
     async def _stream_openai(
         self,
         messages: list[dict],
-        prompt:   BuiltPrompt,
-        t0:       float,
+        prompt: BuiltPrompt,
+        t0: float,
     ) -> AsyncIterator[GeneratorChunk]:
         from openai import AsyncOpenAI
+
         client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
         stream = await client.chat.completions.create(
@@ -125,7 +131,7 @@ class LLMGenerator:
             if finish == "stop":
                 if hasattr(event, "usage") and event.usage:
                     usage = {
-                        "prompt_tokens":     event.usage.prompt_tokens,
+                        "prompt_tokens": event.usage.prompt_tokens,
                         "completion_tokens": event.usage.completion_tokens,
                     }
                 yield GeneratorChunk(
@@ -142,7 +148,7 @@ class LLMGenerator:
 
         # Safety: ensure done is always emitted
         yield GeneratorChunk(
-            delta="", 
+            delta="",
             done=True,
             citations=prompt.citations,
             latency_ms=(time.monotonic() - t0) * 1000,
@@ -155,22 +161,27 @@ class LLMGenerator:
     async def _stream_ollama(
         self,
         messages: list[dict],
-        prompt:   BuiltPrompt,
-        t0:       float,
+        prompt: BuiltPrompt,
+        t0: float,
     ) -> AsyncIterator[GeneratorChunk]:
-        import httpx
         import json as _json
+
+        import httpx
 
         async with httpx.AsyncClient(
             base_url=settings.OLLAMA_BASE_URL,
             timeout=120,
         ) as client:
-            async with client.stream("POST", "/api/chat", json={
-                "model":    settings.OLLAMA_MODEL_NAME,
-                "messages": messages,
-                "stream":   True,
-                "options":  {"temperature": 0.2, "num_predict": _RESPONSE_BUDGET},
-            }) as response:
+            async with client.stream(
+                "POST",
+                "/api/chat",
+                json={
+                    "model": settings.OLLAMA_MODEL_NAME,
+                    "messages": messages,
+                    "stream": True,
+                    "options": {"temperature": 0.2, "num_predict": _RESPONSE_BUDGET},
+                },
+            ) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
                     if not line.strip():
@@ -181,7 +192,7 @@ class LLMGenerator:
                         continue
 
                     delta = event.get("message", {}).get("content", "")
-                    done  = event.get("done", False)
+                    done = event.get("done", False)
 
                     if done:
                         yield GeneratorChunk(
@@ -189,7 +200,7 @@ class LLMGenerator:
                             done=True,
                             citations=prompt.citations,
                             usage={
-                                "prompt_tokens":     event.get("prompt_eval_count", 0),
+                                "prompt_tokens": event.get("prompt_eval_count", 0),
                                 "completion_tokens": event.get("eval_count", 0),
                             },
                             latency_ms=(time.monotonic() - t0) * 1000,
@@ -200,14 +211,11 @@ class LLMGenerator:
                         yield GeneratorChunk(delta=delta)
 
         yield GeneratorChunk(
-            delta="", 
+            delta="",
             done=True,
             citations=prompt.citations,
             latency_ms=(time.monotonic() - t0) * 1000,
         )
-
-
-
 
     # ─────────────────────────────────────────────────────────
     #  GROQ streaming
@@ -216,16 +224,17 @@ class LLMGenerator:
     async def _stream_groq(
         self,
         messages: list[dict],
-        prompt:   BuiltPrompt,
-        t0:       float,
+        prompt: BuiltPrompt,
+        t0: float,
     ) -> AsyncIterator[GeneratorChunk]:
         """
         Stream via Groq's OpenAI-compatible API.
         Groq runs open-source models (Llama, Mixtral) on custom hardware —
         typically 10-20x faster than Ollama on CPU.
- 
+
         """
         from groq import AsyncGroq
+
         client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
         response_stream = await client.chat.completions.create(
@@ -233,20 +242,20 @@ class LLMGenerator:
             messages=messages,
             temperature=0.2,
             max_tokens=_RESPONSE_BUDGET,
-            stream=True
+            stream=True,
         )
 
         async for event in response_stream:
-            delta  = event.choices[0].delta.content or ""
+            delta = event.choices[0].delta.content or ""
             finish = event.choices[0].finish_reason
- 
+
             if finish == "stop":
                 # Groq sends usage on the last chunk's x_groq field
                 x_groq = getattr(event, "x_groq", None)
 
                 if x_groq and hasattr(x_groq, "usage"):
                     usage = {
-                        "prompt_tokens":     x_groq.usage.prompt_tokens,
+                        "prompt_tokens": x_groq.usage.prompt_tokens,
                         "completion_tokens": x_groq.usage.completion_tokens,
                     }
                 yield GeneratorChunk(
@@ -257,17 +266,17 @@ class LLMGenerator:
                     latency_ms=(time.monotonic() - t0) * 1000,
                 )
                 return
- 
+
             if delta:
                 yield GeneratorChunk(delta=delta)
- 
+
         # Safety: ensure done is always emitted
         yield GeneratorChunk(
-            delta="", done=True,
+            delta="",
+            done=True,
             citations=prompt.citations,
             latency_ms=(time.monotonic() - t0) * 1000,
         )
-
 
 
 # Response budget constant (shared with prompt_builder)

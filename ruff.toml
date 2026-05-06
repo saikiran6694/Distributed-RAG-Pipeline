@@ -1,0 +1,26 @@
+# ruff.toml
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (undefined names, unused imports)
+    "I",   # isort (import ordering)
+    "B",   # flake8-bugbear (common bugs)
+    "UP",  # pyupgrade (modernise syntax)
+    "N",   # pep8-naming
+]
+ignore = [
+    "E501",  # line too long — handled by formatter
+    "B008",  # do not perform function calls in default args (FastAPI uses this)
+    "N999",  # invalid module name (some files use hyphens)
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["F811"]  # redefinition of unused name (pytest fixtures)
+
+[format]
+quote-style = "double"
+indent-style = "space"
