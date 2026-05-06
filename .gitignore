@@ -11,3 +11,14 @@ wheels/
 .pytest_cache
 
 .env
+.mypy_cache
+.coverage
+htmlcov/
+*.log
+*.pot
+*.mo
+*.sqlite3
+*.db
+*.bak
+*.tmp
+.ruff_cache/
