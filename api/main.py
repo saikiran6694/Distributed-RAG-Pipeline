@@ -27,28 +27,30 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from qdrant_client import AsyncQdrantClient
 
-from api.ingest import router as ingest_router, set_ingest_dependencies
-from ingestion.intake.producer import ensure_topics_exist
+from api.ingest import router as ingest_router
+from api.ingest import set_ingest_dependencies
 from infrastructure.qdrant.collection_setup import setup_collection
 from ingestion.embedding.services import EmbeddingService, build_backend
 from ingestion.embedding.sparse import get_encoder
+from ingestion.intake.producer import ensure_topics_exist
 from query.engine import QueryEngine, QueryRequest
 from query.prompt_builder import ConversationTurn
 from shared.config import get_settings
 from shared.telemetry import configure_logging, configure_telemetry
 
-logger   = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # ── Module-level singletons ───────────────────────────────────────
 
-_db_pool:      asyncpg.Pool      | None = None
-_qdrant:       AsyncQdrantClient | None = None
-_redis:        aioredis.Redis    | None = None
-_query_engine: QueryEngine       | None = None
+_db_pool: asyncpg.Pool | None = None
+_qdrant: AsyncQdrantClient | None = None
+_redis: aioredis.Redis | None = None
+_query_engine: QueryEngine | None = None
 
 
 # ── Lifespan ─────────────────────────────────────────────────────
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -93,9 +95,9 @@ async def lifespan(app: FastAPI):
     logger.info("Qdrant collection ready")
 
     # Embedding service (shared by ingest + query)
-    backend   = build_backend()
+    backend = build_backend()
     embed_svc = EmbeddingService(backend=backend, db_pool=_db_pool)
-    bm25      = get_encoder()
+    bm25 = get_encoder()
     logger.info("Embedding service ready (backend=%s)", settings.EMBED_BACKEND)
 
     # Wire ingest router dependencies
@@ -143,50 +145,53 @@ app.add_middleware(
 
 # ── Schemas ───────────────────────────────────────────────────────
 
+
 class TurnSchema(BaseModel):
-    role:    str
+    role: str
     content: str
 
 
 class QueryRequestSchema(BaseModel):
-    query:                  str  = Field(..., min_length=1, max_length=2000)
-    top_k:                  int  = Field(default=10, ge=1, le=50)
-    ef:                     int  = Field(default=128, ge=32, le=512)
-    doc_id_filter:          str | None = None
-    source_url_filter:      str | None = None
+    query: str = Field(..., min_length=1, max_length=2000)
+    top_k: int = Field(default=10, ge=1, le=50)
+    ef: int = Field(default=128, ge=32, le=512)
+    doc_id_filter: str | None = None
+    source_url_filter: str | None = None
     hierarchy_level_filter: int | None = Field(default=None, ge=0, le=2)
-    max_context_tokens:     int  = Field(default=8000, ge=1000, le=64000)
-    history:                list[TurnSchema] = Field(default_factory=list)
-    use_cache:              bool = True
-    use_reranker:           bool = True
-    score_threshold:        float = Field(default=0.01, ge=0.0, le=1.0)
+    max_context_tokens: int = Field(default=8000, ge=1000, le=64000)
+    history: list[TurnSchema] = Field(default_factory=list)
+    use_cache: bool = True
+    use_reranker: bool = True
+    score_threshold: float = Field(default=0.01, ge=0.0, le=1.0)
 
 
 class CitationSchema(BaseModel):
     # Bug fix: added chunk_id — prompt_builder includes it in citation dicts.
     # Without this, CitationSchema(**citation_dict) raises ValidationError
     # because Pydantic v2 rejects unexpected fields by default.
-    index:         int
-    source_url:    str
+    index: int
+    source_url: str
     section_title: str | None
-    score:         float
-    chunk_id:      str | None = None   # optional so old responses still deserialise
+    score: float
+    chunk_id: str | None = None  # optional so old responses still deserialise
 
-    model_config = ConfigDict(extra="ignore")   # silently drop any other extra fields
+    model_config = ConfigDict(extra="ignore")  # silently drop any other extra fields
 
 
 class QueryResponseSchema(BaseModel):
-    query:        str
-    answer:       str
-    citations:    list[CitationSchema]
-    chunks_used:  int
-    latency_ms:   float
-    sub_queries:  list[str]
-    cache_hit:    bool = False
-    reranked:     bool = False
+    query: str
+    answer: str
+    citations: list[CitationSchema]
+    chunks_used: int
+    latency_ms: float
+    sub_queries: list[str]
+    cache_hit: bool = False
+    reranked: bool = False
+    groundedness: dict | None = None
 
 
 # ── Health endpoints ──────────────────────────────────────────────
+
 
 @app.get("/health", tags=["Health"])
 async def health():
@@ -225,10 +230,12 @@ async def cache_stats():
     if _redis is None:
         raise HTTPException(status_code=503, detail="Redis not connected")
     from query.cache import build_cache
+
     return await build_cache(_redis).stats()
 
 
 # ── Query endpoints ───────────────────────────────────────────────
+
 
 @app.post("/query", response_model=QueryResponseSchema, tags=["Query"])
 async def query(request: QueryRequestSchema):
@@ -242,20 +249,22 @@ async def query(request: QueryRequestSchema):
 
     history = [ConversationTurn(role=t.role, content=t.content) for t in request.history]
 
-    result = await _query_engine.query(QueryRequest(
-        query=request.query,
-        top_k=request.top_k,
-        ef=request.ef,
-        doc_id_filter=request.doc_id_filter,
-        source_url_filter=request.source_url_filter,
-        hierarchy_level_filter=request.hierarchy_level_filter,
-        max_context_tokens=request.max_context_tokens,
-        history=history,
-        stream=False,
-        use_cache=request.use_cache,
-        use_reranker=request.use_reranker,
-        score_threshold=request.score_threshold,
-    ))
+    result = await _query_engine.query(
+        QueryRequest(
+            query=request.query,
+            top_k=request.top_k,
+            ef=request.ef,
+            doc_id_filter=request.doc_id_filter,
+            source_url_filter=request.source_url_filter,
+            hierarchy_level_filter=request.hierarchy_level_filter,
+            max_context_tokens=request.max_context_tokens,
+            history=history,
+            stream=False,
+            use_cache=request.use_cache,
+            use_reranker=request.use_reranker,
+            score_threshold=request.score_threshold,
+        )
+    )
 
     return QueryResponseSchema(
         query=result.query,
@@ -266,6 +275,7 @@ async def query(request: QueryRequestSchema):
         sub_queries=result.sub_queries,
         cache_hit=result.cache_hit,
         reranked=result.reranked,
+        groundedness=result.groundedness,
     )
 
 
@@ -312,7 +322,7 @@ async def query_stream(request: QueryRequestSchema):
         event_generator(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control":    "no-cache",
-            "X-Accel-Buffering": "no",   # disable nginx buffering for SSE
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable nginx buffering for SSE
         },
     )

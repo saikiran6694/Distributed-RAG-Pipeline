@@ -47,6 +47,9 @@ dependencies = [
     "python-multipart>=0.0.26",
     "groq>=1.1.2",
     "docx2txt>=0.9",
+    "pre-commit>=4.6.0",
+    "mypy>=1.20.1",
+    "ruff>=0.15.10",
 ]
 
 [project.optional-dependencies]
@@ -75,8 +78,3 @@ line-length = 100
 target-version = "py311"
 select = ["E", "F", "I", "N", "UP", "B", "SIM"]
 ignore = ["E501"]
-
-[tool.mypy]
-python_version = "3.11"
-strict = false
-ignore_missing_imports = true

@@ -102,3 +102,12 @@ ingest-url:
 smoke:
 	@echo "Running unit tests only (no Docker needed)..."
 	pytest tests/unit/ -v --tb=short -q
+
+
+pre-commit-install:
+	pip install pre-commit
+	pre-commit install
+	@echo "Pre-commit hooks installed"
+
+pre-commit-run:
+	pre-commit run
