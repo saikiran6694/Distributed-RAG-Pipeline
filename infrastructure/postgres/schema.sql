@@ -68,6 +68,8 @@ CREATE TABLE documents (
     last_error          TEXT,
     retry_count         INT         NOT NULL DEFAULT 0,
 
+    tags                JSONB,                             -- arbitrary key-value pairs for enrichment and filtering
+
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
