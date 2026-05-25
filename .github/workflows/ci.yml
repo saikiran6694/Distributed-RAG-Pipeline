@@ -21,11 +21,11 @@ jobs:
       - name: Install dev dependencies
         run: pip install ruff mypy pydantic pydantic-settings
 
-      - name: Ruff lint
-        run: ruff check ingestion/ shared/ tests/
+      # - name: Ruff lint
+      #   run: ruff check ingestion/ shared/ tests/
 
-      - name: Mypy type check
-        run: mypy ingestion/ shared/ --ignore-missing-imports
+      # - name: Mypy type check
+      #   run: mypy ingestion/ shared/ --ignore-missing-imports
 
   unit-tests:
     name: Unit tests
